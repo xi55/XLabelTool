@@ -1,5 +1,5 @@
-/bin
-/obj/Debug
-/obj/Release
+bin
+obj/Debug
+obj/Release
 /.vs
 
