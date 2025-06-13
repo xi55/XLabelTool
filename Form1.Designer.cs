@@ -30,30 +30,86 @@ namespace LabelClear
         /// </summary>
         private void InitializeComponent()
         {
+            FlowLayoutPanel flowLayoutPanel1;
+            btnPrev = new Button();
+            btnNext = new Button();
+            btnSave = new Button();
+            cancelButton = new Button();
             menuStrip1 = new MenuStrip();
             fileStripMenuItem = new ToolStripMenuItem();
             openPathStripMenuItem = new ToolStripMenuItem();
             pathTreeView = new TreeView();
             pictureBox = new PictureBox();
             splitContainer1 = new SplitContainer();
-            flowLayoutPanel1 = new FlowLayoutPanel();
-            btnPrev = new Button();
-            btnNext = new Button();
-            btnSave = new Button();
             splitContainer2 = new SplitContainer();
             jsonPreviewBox = new RichTextBox();
+            flowLayoutPanel1 = new FlowLayoutPanel();
+            flowLayoutPanel1.SuspendLayout();
             menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox).BeginInit();
             ((System.ComponentModel.ISupportInitialize)splitContainer1).BeginInit();
             splitContainer1.Panel1.SuspendLayout();
             splitContainer1.Panel2.SuspendLayout();
             splitContainer1.SuspendLayout();
-            flowLayoutPanel1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)splitContainer2).BeginInit();
             splitContainer2.Panel1.SuspendLayout();
             splitContainer2.Panel2.SuspendLayout();
             splitContainer2.SuspendLayout();
             SuspendLayout();
+            // 
+            // flowLayoutPanel1
+            // 
+            flowLayoutPanel1.BackColor = SystemColors.Info;
+            flowLayoutPanel1.Controls.Add(btnPrev);
+            flowLayoutPanel1.Controls.Add(btnNext);
+            flowLayoutPanel1.Controls.Add(btnSave);
+            flowLayoutPanel1.Controls.Add(cancelButton);
+            flowLayoutPanel1.Dock = DockStyle.Top;
+            flowLayoutPanel1.Location = new Point(0, 0);
+            flowLayoutPanel1.Name = "flowLayoutPanel1";
+            flowLayoutPanel1.Size = new Size(623, 56);
+            flowLayoutPanel1.TabIndex = 4;
+            // 
+            // btnPrev
+            // 
+            btnPrev.Location = new Point(3, 3);
+            btnPrev.Name = "btnPrev";
+            btnPrev.Size = new Size(150, 46);
+            btnPrev.TabIndex = 0;
+            btnPrev.Text = "上一张";
+            btnPrev.UseVisualStyleBackColor = true;
+            btnPrev.Click += btnPrev_Click;
+            // 
+            // btnNext
+            // 
+            btnNext.Location = new Point(159, 3);
+            btnNext.Name = "btnNext";
+            btnNext.Size = new Size(150, 46);
+            btnNext.TabIndex = 1;
+            btnNext.Text = "下一张";
+            btnNext.UseVisualStyleBackColor = true;
+            btnNext.Click += btnNext_Click;
+            // 
+            // btnSave
+            // 
+            btnSave.Location = new Point(315, 3);
+            btnSave.Name = "btnSave";
+            btnSave.Size = new Size(150, 46);
+            btnSave.TabIndex = 2;
+            btnSave.Text = "保存";
+            btnSave.UseVisualStyleBackColor = true;
+            btnSave.Click += btnSave_Click;
+            // 
+            // cancelButton
+            // 
+            cancelButton.Location = new Point(471, 3);
+            cancelButton.Name = "cancelButton";
+            cancelButton.Size = new Size(149, 46);
+            cancelButton.TabIndex = 3;
+            cancelButton.Text = "取消编辑";
+            cancelButton.UseVisualStyleBackColor = true;
+            cancelButton.Visible = false;
+            cancelButton.Click += cancelButton_Click;
             // 
             // menuStrip1
             // 
@@ -121,47 +177,6 @@ namespace LabelClear
             splitContainer1.SplitterDistance = 345;
             splitContainer1.TabIndex = 4;
             // 
-            // flowLayoutPanel1
-            // 
-            flowLayoutPanel1.Controls.Add(btnPrev);
-            flowLayoutPanel1.Controls.Add(btnNext);
-            flowLayoutPanel1.Controls.Add(btnSave);
-            flowLayoutPanel1.Dock = DockStyle.Top;
-            flowLayoutPanel1.Location = new Point(0, 0);
-            flowLayoutPanel1.Name = "flowLayoutPanel1";
-            flowLayoutPanel1.Size = new Size(623, 56);
-            flowLayoutPanel1.TabIndex = 4;
-            // 
-            // btnPrev
-            // 
-            btnPrev.Location = new Point(3, 3);
-            btnPrev.Name = "btnPrev";
-            btnPrev.Size = new Size(150, 46);
-            btnPrev.TabIndex = 0;
-            btnPrev.Text = "上一张";
-            btnPrev.UseVisualStyleBackColor = true;
-            btnPrev.Click += btnPrev_Click;
-            // 
-            // btnNext
-            // 
-            btnNext.Location = new Point(159, 3);
-            btnNext.Name = "btnNext";
-            btnNext.Size = new Size(150, 46);
-            btnNext.TabIndex = 1;
-            btnNext.Text = "下一张";
-            btnNext.UseVisualStyleBackColor = true;
-            btnNext.Click += btnNext_Click;
-            // 
-            // btnSave
-            // 
-            btnSave.Location = new Point(315, 3);
-            btnSave.Name = "btnSave";
-            btnSave.Size = new Size(150, 46);
-            btnSave.TabIndex = 2;
-            btnSave.Text = "保存";
-            btnSave.UseVisualStyleBackColor = true;
-            btnSave.Click += btnSave_Click;
-            // 
             // splitContainer2
             // 
             splitContainer2.Dock = DockStyle.Fill;
@@ -202,6 +217,7 @@ namespace LabelClear
             Name = "Form1";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "Form1";
+            flowLayoutPanel1.ResumeLayout(false);
             menuStrip1.ResumeLayout(false);
             menuStrip1.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)pictureBox).EndInit();
@@ -209,7 +225,6 @@ namespace LabelClear
             splitContainer1.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)splitContainer1).EndInit();
             splitContainer1.ResumeLayout(false);
-            flowLayoutPanel1.ResumeLayout(false);
             splitContainer2.Panel1.ResumeLayout(false);
             splitContainer2.Panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)splitContainer2).EndInit();
@@ -232,5 +247,6 @@ namespace LabelClear
         private Button btnPrev;
         private Button btnNext;
         private Button btnSave;
+        private Button cancelButton;
     }
 }

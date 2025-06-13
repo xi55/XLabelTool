@@ -8,8 +8,18 @@ namespace LabelClear
 {
     public partial class Form1 : Form
     {
-        private JArray _labelData = new JArray();
-        private List<(List<OpenCvSharp.Point> Points, JObject Annotation)> _polygons = new List<(List<OpenCvSharp.Point>, JObject)>();
+        private JArray _labelData = [];
+        private List<(List<OpenCvSharp.Point> Points, JObject Annotation)> _polygons = [];
+
+        private List<OpenCvSharp.Point> _currentPolygonPoint = [];
+
+        private JObject? _currentAnnotation = null;
+
+        private Mat _originalImage = new Mat();
+
+        private bool isEdit = false;
+
+        private ContextMenuStrip _contextMenu = new();
 
         string _rootPath = string.Empty;
         public Form1()
@@ -19,6 +29,8 @@ namespace LabelClear
             _rootPath = "F:\\m_work\\ocrSDK\\open-mantra-dataset\\";
 
             parseLabel(Path.Combine(_rootPath, "dataset.json"));
+
+            _contextMenu.Items.Add("编辑", null, EditAnnotationMenuItem_Click);
 
         }
 
@@ -75,8 +87,12 @@ namespace LabelClear
             var mouseEventArgs = e as MouseEventArgs;
             if (mouseEventArgs == null) return;
 
-            if (mouseEventArgs.Button != MouseButtons.Left)
+            if (!isEdit)
             {
+                if (mouseEventArgs.Button == MouseButtons.Right)
+                {
+                    _contextMenu.Show(pictureBox, mouseEventArgs.Location);
+                }
                 return;
             }
 
@@ -99,26 +115,85 @@ namespace LabelClear
                 // MessageBox.Show("Click is outside the image bounds.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-
             var imageX = (mouseEventArgs.X - offsetX) / scale;
             var imageY = (mouseEventArgs.Y - offsetY) / scale;
 
-            foreach (var (points, annotation) in _polygons)
+            if (mouseEventArgs.Button == MouseButtons.Right)
             {
-                if (IsPointInPolygon(new OpenCvSharp.Point((int)imageX, (int)imageY), points))
+
+                foreach (var (points, annotation) in _polygons)
                 {
-                    DeleteAnnotation(annotation);
-                    return;
+                    if (IsPointInPolygon(new OpenCvSharp.Point((int)imageX, (int)imageY), points))
+                    {
+                        DeleteAnnotation(annotation);
+                        return;
+                    }
                 }
             }
+            else if (mouseEventArgs.Button == MouseButtons.Left)
+            {
+                if (pictureBox.Image == null) return;
+
+                _currentPolygonPoint.Add(new OpenCvSharp.Point((int)imageX, (int)imageY));
+                Mat tempImage = _originalImage.Clone();
+                if (_currentPolygonPoint.Count > 1)
+                {
+                    Cv2.Polylines(tempImage, new[] { _currentPolygonPoint.ToArray() }, false, Scalar.Blue, 2);
+                }
+
+                if (_currentPolygonPoint.Count >= 4 && distance(_currentPolygonPoint[0], _currentPolygonPoint[^1]) < 10)
+                {
+                    _currentPolygonPoint[^1] = _currentPolygonPoint[0];
+                    JArray polygon = [];
+                    foreach (var point in _currentPolygonPoint)
+                    {
+                        polygon.Add(point.X);
+                        polygon.Add(point.Y);
+                    }
+
+                    JObject newAnnotation = new JObject
+                    {
+                        ["bbox"] = new JArray(),
+                        ["polygon"] = polygon,
+                        ["ignore"] = false,
+                        ["text"] = ""
+                    };
+
+                    if (_currentAnnotation != null && _currentAnnotation["instances"] is JArray instances)
+                    {
+                        instances.Add(newAnnotation);
+                        RefreshImage(instances);
 
 
-            // MessageBox.Show($"Image Coordinates: ({(int)imageX}, {(int)imageY})", "Coordinates", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    _currentPolygonPoint.Clear();
+                }
+                jsonPreviewBox.Clear();
+                jsonPreviewBox.Text = _currentAnnotation?.ToString(Formatting.Indented);
+                
+
+
+                pictureBox.Image?.Dispose();
+                pictureBox.Image = Image.FromStream(tempImage.ToMemoryStream());
+                tempImage.Dispose();
+            }
+
+        }
+
+        private float distance(OpenCvSharp.Point p1, OpenCvSharp.Point p2)
+        {
+            return (float)Math.Sqrt(Math.Pow(p2.X - p1.X, 2) + Math.Pow(p2.Y - p1.Y, 2));
+        }
+
+        private void EditAnnotationMenuItem_Click(object? sender, EventArgs e)
+        {
+            isEdit = true;
+            this.cancelButton.Visible = true;
         }
 
         private void pathTreeView_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            
+
             if (e.Node == null || e.Node.Tag == null)
             {
                 jsonPreviewBox.Clear();
@@ -144,7 +219,7 @@ namespace LabelClear
                     jsonPreviewBox.Clear();
                     pictureBox.Image?.Dispose();
 
-                    Mat mat = new Mat();
+                    _originalImage = new Mat();
                     string abs_img_path = string.Empty;
                     foreach (JObject item in _labelData)
                     {
@@ -152,7 +227,9 @@ namespace LabelClear
                         // MessageBox.Show($"compare: {abs_img_path} with {filePath}");
                         if (filePath == abs_img_path)
                         {
-                            mat = Cv2.ImRead(abs_img_path, ImreadModes.Color);
+                            _currentAnnotation = item;
+
+                            _originalImage = Cv2.ImRead(abs_img_path, ImreadModes.Color);
                             foreach (JObject ob in item["instances"] ?? new JArray())
                             {
                                 if (ob["ignore"]?.ToObject<bool>() == true)
@@ -165,8 +242,8 @@ namespace LabelClear
                                 {
                                     points.Add(new OpenCvSharp.Point(polygon[i], polygon[i + 1]));
                                 }
-                                Cv2.Polylines(mat, new[] { points.ToArray() }, true, Scalar.Red, 2);
-                                
+                                Cv2.Polylines(_originalImage, new[] { points.ToArray() }, true, Scalar.Red, 2);
+
                                 _polygons.Add((points, ob));
 
                             }
@@ -174,12 +251,12 @@ namespace LabelClear
                             break;
                         }
                     }
-                    if (mat.Empty())
+                    if (_originalImage.Empty())
                     {
                         MessageBox.Show($"Failed to load image. File Path: {abs_img_path}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                         return;
                     }
-                    pictureBox.Image = Image.FromStream(mat.ToMemoryStream());
+                    pictureBox.Image = Image.FromStream(_originalImage.ToMemoryStream());
                 }
                 catch (Exception ex)
                 {
@@ -262,7 +339,7 @@ namespace LabelClear
             var filePath = pathTreeView.SelectedNode?.Tag as string;
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
 
-            Mat mat = Cv2.ImRead(filePath, ImreadModes.Color);
+            _originalImage = Cv2.ImRead(filePath, ImreadModes.Color);
             _polygons.Clear();
 
             foreach (var ins in instances)
@@ -276,7 +353,7 @@ namespace LabelClear
                     points.Add(new OpenCvSharp.Point(polygon[i], polygon[i + 1]));
                 }
 
-                Cv2.Polylines(mat, new[] { points.ToArray() }, true, Scalar.Red, 2);
+                Cv2.Polylines(_originalImage, new[] { points.ToArray() }, true, Scalar.Red, 2);
                 var annotation = ins as JObject;
                 if (annotation != null)
                 {
@@ -285,7 +362,7 @@ namespace LabelClear
             }
 
             pictureBox.Image?.Dispose();
-            pictureBox.Image = Image.FromStream(mat.ToMemoryStream());
+            pictureBox.Image = Image.FromStream(_originalImage.ToMemoryStream());
         }
 
         private void btnPrev_Click(object sender, EventArgs e)
@@ -322,6 +399,13 @@ namespace LabelClear
         private void btnSave_Click(object sender, EventArgs e)
         {
 
+        }
+
+        private void cancelButton_Click(object sender, EventArgs e)
+        {
+            isEdit = false;
+            this.cancelButton.Visible = false;
+            _currentPolygonPoint.Clear();
         }
     }
 }
