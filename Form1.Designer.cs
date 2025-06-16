@@ -34,6 +34,7 @@ namespace LabelClear
             btnPrev = new Button();
             btnNext = new Button();
             btnSave = new Button();
+            annMergeButton = new Button();
             cancelButton = new Button();
             menuStrip1 = new MenuStrip();
             fileStripMenuItem = new ToolStripMenuItem();
@@ -63,11 +64,12 @@ namespace LabelClear
             flowLayoutPanel1.Controls.Add(btnPrev);
             flowLayoutPanel1.Controls.Add(btnNext);
             flowLayoutPanel1.Controls.Add(btnSave);
+            flowLayoutPanel1.Controls.Add(annMergeButton);
             flowLayoutPanel1.Controls.Add(cancelButton);
             flowLayoutPanel1.Dock = DockStyle.Top;
             flowLayoutPanel1.Location = new Point(0, 0);
             flowLayoutPanel1.Name = "flowLayoutPanel1";
-            flowLayoutPanel1.Size = new Size(623, 56);
+            flowLayoutPanel1.Size = new Size(766, 56);
             flowLayoutPanel1.TabIndex = 4;
             // 
             // btnPrev
@@ -100,9 +102,19 @@ namespace LabelClear
             btnSave.UseVisualStyleBackColor = true;
             btnSave.Click += btnSave_Click;
             // 
+            // annMergeButton
+            // 
+            annMergeButton.Location = new Point(471, 3);
+            annMergeButton.Name = "annMergeButton";
+            annMergeButton.Size = new Size(132, 46);
+            annMergeButton.TabIndex = 4;
+            annMergeButton.Text = "合并框";
+            annMergeButton.UseVisualStyleBackColor = true;
+            annMergeButton.Click += annMergeButton_Click;
+            // 
             // cancelButton
             // 
-            cancelButton.Location = new Point(471, 3);
+            cancelButton.Location = new Point(609, 3);
             cancelButton.Name = "cancelButton";
             cancelButton.Size = new Size(149, 46);
             cancelButton.TabIndex = 3;
@@ -117,7 +129,7 @@ namespace LabelClear
             menuStrip1.Items.AddRange(new ToolStripItem[] { fileStripMenuItem });
             menuStrip1.Location = new Point(0, 0);
             menuStrip1.Name = "menuStrip1";
-            menuStrip1.Size = new Size(1274, 39);
+            menuStrip1.Size = new Size(1562, 39);
             menuStrip1.TabIndex = 0;
             menuStrip1.Text = "menuStrip1";
             // 
@@ -141,7 +153,7 @@ namespace LabelClear
             pathTreeView.Dock = DockStyle.Fill;
             pathTreeView.Location = new Point(0, 0);
             pathTreeView.Name = "pathTreeView";
-            pathTreeView.Size = new Size(345, 690);
+            pathTreeView.Size = new Size(421, 806);
             pathTreeView.TabIndex = 1;
             pathTreeView.AfterSelect += pathTreeView_AfterSelect;
             // 
@@ -151,11 +163,12 @@ namespace LabelClear
             pictureBox.Dock = DockStyle.Fill;
             pictureBox.Location = new Point(0, 56);
             pictureBox.Name = "pictureBox";
-            pictureBox.Size = new Size(623, 634);
+            pictureBox.Size = new Size(766, 750);
             pictureBox.SizeMode = PictureBoxSizeMode.Zoom;
             pictureBox.TabIndex = 3;
             pictureBox.TabStop = false;
             pictureBox.Click += pictureBox_Click;
+            pictureBox.MouseMove += pictureBox_MouseMove;
             // 
             // splitContainer1
             // 
@@ -173,8 +186,8 @@ namespace LabelClear
             splitContainer1.Panel2.Controls.Add(pictureBox);
             splitContainer1.Panel2.Controls.Add(flowLayoutPanel1);
             splitContainer1.Panel2MinSize = 100;
-            splitContainer1.Size = new Size(972, 690);
-            splitContainer1.SplitterDistance = 345;
+            splitContainer1.Size = new Size(1191, 806);
+            splitContainer1.SplitterDistance = 421;
             splitContainer1.TabIndex = 4;
             // 
             // splitContainer2
@@ -190,8 +203,8 @@ namespace LabelClear
             // splitContainer2.Panel2
             // 
             splitContainer2.Panel2.Controls.Add(jsonPreviewBox);
-            splitContainer2.Size = new Size(1274, 690);
-            splitContainer2.SplitterDistance = 972;
+            splitContainer2.Size = new Size(1562, 806);
+            splitContainer2.SplitterDistance = 1191;
             splitContainer2.TabIndex = 5;
             // 
             // jsonPreviewBox
@@ -201,7 +214,7 @@ namespace LabelClear
             jsonPreviewBox.Location = new Point(0, 0);
             jsonPreviewBox.Name = "jsonPreviewBox";
             jsonPreviewBox.ReadOnly = true;
-            jsonPreviewBox.Size = new Size(298, 690);
+            jsonPreviewBox.Size = new Size(367, 806);
             jsonPreviewBox.TabIndex = 0;
             jsonPreviewBox.Text = "";
             // 
@@ -210,7 +223,7 @@ namespace LabelClear
             AutoScaleDimensions = new SizeF(14F, 31F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = SystemColors.HighlightText;
-            ClientSize = new Size(1274, 729);
+            ClientSize = new Size(1562, 845);
             Controls.Add(splitContainer2);
             Controls.Add(menuStrip1);
             MainMenuStrip = menuStrip1;
@@ -248,5 +261,6 @@ namespace LabelClear
         private Button btnNext;
         private Button btnSave;
         private Button cancelButton;
+        private Button annMergeButton;
     }
 }

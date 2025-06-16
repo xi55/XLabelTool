@@ -22,6 +22,12 @@ namespace LabelClear
         private ContextMenuStrip _contextMenu = new();
 
         string _rootPath = string.Empty;
+
+        private float scale = .0f;
+        private float offsetX = .0f;
+        private float offsetY = .0f;
+        private Mat _tempImage;
+
         public Form1()
         {
             InitializeComponent();
@@ -76,26 +82,43 @@ namespace LabelClear
             catch { }
         }
 
-        private void pictureBox_Click(object sender, EventArgs e)
+        private void pictureBox_MouseMove(object sender, MouseEventArgs e)
         {
-            if (pictureBox.Image == null)
-            {
-                MessageBox.Show("No image loaded. Please select an image from the tree view.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                return;
-            }
 
-            var mouseEventArgs = e as MouseEventArgs;
+            if (!isEdit || _currentPolygonPoint.Count == 0) return;
+            var mouseEventArgs = e;
             if (mouseEventArgs == null) return;
 
-            if (!isEdit)
+
+
+            if (mouseEventArgs.X < offsetX || mouseEventArgs.X > offsetX + (pictureBox.Image.Size.Width * scale) ||
+                mouseEventArgs.Y < offsetY || mouseEventArgs.Y > offsetY + (pictureBox.Image.Size.Height * scale))
             {
-                if (mouseEventArgs.Button == MouseButtons.Right)
-                {
-                    _contextMenu.Show(pictureBox, mouseEventArgs.Location);
-                }
                 return;
             }
 
+            var imageX = (mouseEventArgs.X - offsetX) / scale;
+            var imageY = (mouseEventArgs.Y - offsetY) / scale;
+
+            Mat tempImage = _originalImage.Clone();
+            // 绘制当前多边形
+            if (_currentPolygonPoint.Count > 0)
+            {
+                Cv2.Polylines(tempImage, [[.. _currentPolygonPoint]], false, Scalar.Blue, 2);
+
+                // 绘制从最后一个点到鼠标位置的线段
+                var lastPoint = _currentPolygonPoint[^1];
+                Cv2.Line(tempImage, lastPoint, new OpenCvSharp.Point((int)imageX, (int)imageY), Scalar.Green, 2);
+            }
+
+            // 更新显示
+            pictureBox.Image?.Dispose();
+            pictureBox.Image = Image.FromStream(tempImage.ToMemoryStream());
+            tempImage.Dispose();
+        }
+
+        private (float scale, float offsetX, float offsetY) GetImageScaleAndOffset()
+        {
             var pictureBoxSize = pictureBox.ClientSize;
             var imageSize = pictureBox.Image.Size;
 
@@ -109,10 +132,33 @@ namespace LabelClear
             var offsetX = (pictureBoxSize.Width - imageDisplayWidth) / 2;
             var offsetY = (pictureBoxSize.Height - imageDisplayHeight) / 2;
 
-            if (mouseEventArgs.X < offsetX || mouseEventArgs.X > offsetX + imageDisplayWidth ||
-                mouseEventArgs.Y < offsetY || mouseEventArgs.Y > offsetY + imageDisplayHeight)
+            return (scale, offsetX, offsetY);
+        }
+
+
+        private void pictureBox_Click(object sender, EventArgs e)
+        {
+            if (pictureBox.Image == null)
             {
-                // MessageBox.Show("Click is outside the image bounds.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("No image loaded. Please select an image from the tree view.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (e is not MouseEventArgs mouseEventArgs) return;
+
+            if (!isEdit)
+            {
+                if (mouseEventArgs.Button == MouseButtons.Right)
+                {
+                    _contextMenu.Show(pictureBox, mouseEventArgs.Location);
+                }
+                return;
+            }
+
+
+            if (mouseEventArgs.X < offsetX || mouseEventArgs.X > offsetX + (pictureBox.Image.Size.Width * scale) ||
+                mouseEventArgs.Y < offsetY || mouseEventArgs.Y > offsetY + (pictureBox.Image.Size.Height * scale))
+            {
                 return;
             }
             var imageX = (mouseEventArgs.X - offsetX) / scale;
@@ -138,7 +184,7 @@ namespace LabelClear
                 Mat tempImage = _originalImage.Clone();
                 if (_currentPolygonPoint.Count > 1)
                 {
-                    Cv2.Polylines(tempImage, new[] { _currentPolygonPoint.ToArray() }, false, Scalar.Blue, 2);
+                    Cv2.Polylines(tempImage, [[.. _currentPolygonPoint]], false, Scalar.Blue, 2);
                 }
 
                 if (_currentPolygonPoint.Count >= 4 && distance(_currentPolygonPoint[0], _currentPolygonPoint[^1]) < 10)
@@ -151,9 +197,10 @@ namespace LabelClear
                         polygon.Add(point.Y);
                     }
 
-                    JObject newAnnotation = new JObject
+                    JObject newAnnotation = new()
                     {
-                        ["bbox"] = new JArray(),
+                        ["bbox"] = GetBoundingBox(polygon),
+                        ["bbox_label"] = 1,
                         ["polygon"] = polygon,
                         ["ignore"] = false,
                         ["text"] = ""
@@ -170,7 +217,7 @@ namespace LabelClear
                 }
                 jsonPreviewBox.Clear();
                 jsonPreviewBox.Text = _currentAnnotation?.ToString(Formatting.Indented);
-                
+
 
 
                 pictureBox.Image?.Dispose();
@@ -178,6 +225,29 @@ namespace LabelClear
                 tempImage.Dispose();
             }
 
+        }
+
+        private JArray GetBoundingBox(JArray polygon)
+        {
+            if (polygon == null || polygon.Count < 2) return new JArray();
+
+            int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+
+            for (int i = 0; i < polygon.Count; i += 2)
+            {
+                int x = polygon[i].ToObject<int>();
+                int y = polygon[i + 1].ToObject<int>();
+
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+            }
+
+            int width = maxX - minX;
+            int height = maxY - minY;
+
+            return [minX, minY, width, height];
         }
 
         private float distance(OpenCvSharp.Point p1, OpenCvSharp.Point p2)
@@ -207,6 +277,8 @@ namespace LabelClear
             {
                 try
                 {
+
+
                     var filePath = e.Node.Tag as string;
                     if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
                     {
@@ -257,6 +329,8 @@ namespace LabelClear
                         return;
                     }
                     pictureBox.Image = Image.FromStream(_originalImage.ToMemoryStream());
+
+                    (scale, offsetX, offsetY) = GetImageScaleAndOffset();
                 }
                 catch (Exception ex)
                 {
@@ -332,12 +406,28 @@ namespace LabelClear
             }
         }
 
-        private void RefreshImage(JArray instances)
+        private void RefreshImage(JArray? instances)
         {
             if (pictureBox.Image == null) return;
-
             var filePath = pathTreeView.SelectedNode?.Tag as string;
             if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath)) return;
+            if (instances == null || instances.Count == 0)
+            {
+                foreach (JObject it in _labelData)
+                {
+                    // MessageBox.Show($"compare: {_rootPath + it["img_path"]?.ToString()} with {Path.GetFileName(filePath)}");
+                    if ((_rootPath + it["img_path"]?.ToString()) == filePath)
+                    {
+                        instances = it["instances"] as JArray;
+                        break;
+                    }
+                }
+                if (instances == null || instances.Count == 0)
+                {
+                    MessageBox.Show("No annotations found for the selected image.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+            }
 
             _originalImage = Cv2.ImRead(filePath, ImreadModes.Color);
             _polygons.Clear();
@@ -398,7 +488,25 @@ namespace LabelClear
 
         private void btnSave_Click(object sender, EventArgs e)
         {
-
+            try
+            {
+                string labelPath = Path.Combine(_rootPath, "test_dataset.json");
+                JObject jsonObject = new JObject
+                {
+                    ["metainfo"] = new JObject
+                    {
+                        ["dataset_type"] = "OCRDataset",
+                        ["task_name"] = "text_detection"
+                    },
+                    ["data_list"] = _labelData
+                };
+                File.WriteAllText(labelPath, jsonObject.ToString(Formatting.Indented));
+                MessageBox.Show("Annotations saved successfully.", "Success", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving annotations: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         private void cancelButton_Click(object sender, EventArgs e)
@@ -406,6 +514,118 @@ namespace LabelClear
             isEdit = false;
             this.cancelButton.Visible = false;
             _currentPolygonPoint.Clear();
+            RefreshImage(null);
         }
+
+        private void annMergeButton_Click(object sender, EventArgs e)
+        {
+            if (_currentAnnotation == null)
+            {
+                MessageBox.Show("No annotation selected to merge.", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            if (_currentAnnotation?["instances"] is JArray instancesArray)
+            {
+                var newInstances = new JArray();
+
+                for (int i = 0; i < instancesArray.Count; i++)
+                {
+                    var instance1 = instancesArray[i] as JObject;
+                    var polygon1 = instance1?["polygon"]?.ToObject<int[]>();
+                    if (polygon1 == null) continue;
+
+                    bool merged = false;
+                    for (int j = i + 1; j < instancesArray.Count; j++)
+                    {
+                        var instance2 = instancesArray[j] as JObject;
+                        var polygon2 = instance2?["polygon"]?.ToObject<int[]>();
+                        if (polygon2 == null) continue;
+
+                        if (ArePolygonsClose(polygon1, polygon2))
+                        {
+                            var mergedPolygon = MergePolygons(polygon1, polygon2);
+                            if (instance1 != null)
+                            {
+                                instance1["polygon"] = JArray.FromObject(mergedPolygon);
+                                if (instance1["polygon"] is JArray polygon)
+                                {
+                                    instance1["bbox"] = GetBoundingBox(polygon);
+                                }
+                            }
+                            if (instance2 != null)
+                            {
+                                instancesArray.RemoveAt(j);
+                                j--; // Adjust index after removal
+                            }
+                            merged = true;
+                        }
+                    }
+                    if (!merged)
+                    {
+                        // MessageBox.Show($"Polygon {i + 1} did not merge with any other polygons.", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        if (instance1 != null)
+                        {
+                            newInstances.Add(instance1);
+                        }
+                    }
+                }
+
+                instancesArray = newInstances;
+                RefreshImage(null);
+                jsonPreviewBox.Clear();
+                jsonPreviewBox.Text = _currentAnnotation.ToString(Formatting.Indented);
+            }
+
+        }
+
+        private bool ArePolygonsClose(int[] polygon1, int[] polygon2, int threshold = 10)
+        {
+            var bbox1 = GetBoundingBox(polygon1);
+            var bbox2 = GetBoundingBox(polygon2);
+            int distanceX = Math.Max(0, Math.Max(bbox1[0] - (bbox2[0] + bbox2[2]), bbox2[0] - (bbox1[0] + bbox1[2])));
+            int distanceY = Math.Max(0, Math.Max(bbox1[1] - (bbox2[1] + bbox2[3]), bbox2[1] - (bbox1[1] + bbox1[3])));
+            return distanceX <= threshold && distanceY <= threshold;
+        }
+
+        private int[] MergePolygons(int[] polygon1, int[] polygon2)
+        {
+            // 将两个多边形的点合并
+            var points = new List<OpenCvSharp.Point>();
+            for (int i = 0; i < polygon1.Length; i += 2)
+            {
+                points.Add(new OpenCvSharp.Point(polygon1[i], polygon1[i + 1]));
+            }
+            for (int i = 0; i < polygon2.Length; i += 2)
+            {
+                points.Add(new OpenCvSharp.Point(polygon2[i], polygon2[i + 1]));
+            }
+
+            // 使用凸包算法生成新的多边形
+            var hull = Cv2.ConvexHull(points);
+
+            // 转换为 int[] 格式
+            return hull.SelectMany(p => new[] { (int)p.X, (int)p.Y }).ToArray();
+        }
+
+        private int[] GetBoundingBox(int[] polygon)
+        {
+            int minX = int.MaxValue, minY = int.MaxValue, maxX = int.MinValue, maxY = int.MinValue;
+
+            for (int i = 0; i < polygon.Length; i += 2)
+            {
+                int x = polygon[i];
+                int y = polygon[i + 1];
+
+                minX = Math.Min(minX, x);
+                minY = Math.Min(minY, y);
+                maxX = Math.Max(maxX, x);
+                maxY = Math.Max(maxY, y);
+            }
+
+            return new[] { minX, minY, maxX - minX, maxY - minY }; // 返回 [x, y, width, height]
+        }
+
+
     }
 }
